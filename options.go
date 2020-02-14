@@ -20,6 +20,11 @@ const (
 	DefaultSecurePort        = 443
 	DefaultGRPCCollectorHost = "collector-grpc.lightstep.com"
 
+	DefaultSystemMetricsHost = "metricingest.lightstep.com"
+
+	DefaultSystemMetricsMeasurementFrequency = 30 * time.Second
+	DefaultSystemMetricsTimeout              = 5 * time.Second
+
 	DefaultMaxReportingPeriod = 2500 * time.Millisecond
 	DefaultMinReportingPeriod = 500 * time.Millisecond
 	DefaultMaxSpans           = 1000
@@ -104,6 +109,13 @@ func (e Endpoint) scheme() string {
 	}
 
 	return secureScheme
+}
+
+type SystemMetricsOptions struct {
+	Disabled             bool          `yaml:"disabled"`
+	Endpoint             Endpoint      `yaml:"endpoint"`
+	MeasurementFrequency time.Duration `yaml:"measurement_frequency"`
+	Timeout              time.Duration `yaml:"timeout"`
 }
 
 // Options control how the LightStep Tracer behaves.
@@ -198,6 +210,8 @@ type Options struct {
 
 	// Enable LightStep Meta Event Logging
 	MetaEventReportingEnabled bool `yaml:"meta_event_reporting_enabled" json:"meta_event_reporting_enabled"`
+
+	SystemMetrics SystemMetricsOptions `yaml:"system_metrics"`
 }
 
 // Initialize validates options, and sets default values for unset options.
@@ -266,6 +280,26 @@ func (opts *Options) Initialize() error {
 		}
 	}
 
+	if opts.SystemMetrics.Endpoint.Host == "" {
+		opts.SystemMetrics.Endpoint.Host = DefaultSystemMetricsHost
+	}
+
+	if opts.SystemMetrics.Endpoint.Port <= 0 {
+		opts.SystemMetrics.Endpoint.Port = DefaultSecurePort
+
+		if opts.SystemMetrics.Endpoint.Plaintext {
+			opts.SystemMetrics.Endpoint.Port = DefaultPlainPort
+		}
+	}
+
+	if opts.SystemMetrics.MeasurementFrequency <= 0 {
+		opts.SystemMetrics.MeasurementFrequency = DefaultSystemMetricsMeasurementFrequency
+	}
+
+	if opts.SystemMetrics.Timeout <= 0 {
+		opts.SystemMetrics.Timeout = DefaultSystemMetricsTimeout
+	}
+
 	return nil
 }
 
@@ -281,6 +315,13 @@ func (opts *Options) Validate() error {
 			return err
 		}
 	}
+
+	if !opts.SystemMetrics.Disabled && len(opts.SystemMetrics.Endpoint.CustomCACertFile) != 0 {
+		if _, err := os.Stat(opts.SystemMetrics.Endpoint.CustomCACertFile); os.IsNotExist(err) {
+			return err
+		}
+	}
+
 	return nil
 }
 

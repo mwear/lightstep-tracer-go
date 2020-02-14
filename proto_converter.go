@@ -182,6 +182,13 @@ func (converter *protoConverter) toTimestamp(t time.Time) *types.Timestamp {
 	}
 }
 
+func (converter *protoConverter) toDuration(d time.Duration) *types.Duration {
+	return &types.Duration{
+		Seconds: d.Milliseconds() / 1000,
+		Nanos:   int32(d.Nanoseconds()),
+	}
+}
+
 func (converter *protoConverter) fromDuration(d time.Duration) uint64 {
 	return uint64(d / time.Microsecond)
 }

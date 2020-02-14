@@ -7,9 +7,9 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	logger "log"
+	"os"
 	"time"
 
 	"github.com/lightstep/lightstep-tracer-go"
@@ -17,7 +17,7 @@ import (
 	"github.com/opentracing/opentracing-go/log"
 )
 
-var accessToken = flag.String("access_token", "", "your LightStep access token")
+var accessToken = os.Getenv("LIGHTSTEP_ACCESS_TOKEN")
 
 func subRoutine(ctx context.Context) {
 	trivialSpan, _ := opentracing.StartSpanFromContext(ctx, "test span")
@@ -48,10 +48,17 @@ func main() {
 
 	// Use LightStep as the global OpenTracing Tracer.
 	opentracing.InitGlobalTracer(lightstep.NewTracer(lightstep.Options{
-		AccessToken: *accessToken,
-		Collector:   lightstep.Endpoint{Host: "localhost", Port: 8360, Plaintext: true},
-		UseGRPC:     true,
+		AccessToken: accessToken,
+		Collector:   lightstep.Endpoint{Host: "ingest.lightstep.com", Port: 443, Plaintext: false},
+		UseHttp:     true,
 		Recorder:    loggableRecorder,
+		SystemMetrics: lightstep.SystemMetricsOptions{
+			Endpoint: lightstep.Endpoint{
+				Host:      "localhost",
+				Port:      9876,
+				Plaintext: true,
+			},
+		},
 	}))
 
 	// Do something that's traced.

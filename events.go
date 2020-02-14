@@ -353,3 +353,31 @@ func (eventTracerDisabled) EventTracerDisabled() {}
 func (eventTracerDisabled) String() string {
 	return tracerDisabled
 }
+
+type EventSystemMetricsMeasurementFailed interface {
+	ErrorEvent
+}
+
+type eventSystemMetricsMeasurementFailed struct {
+	err error
+}
+
+func newEventSystemMetricsMeasurementFailed(err error) *eventSystemMetricsMeasurementFailed {
+	return &eventSystemMetricsMeasurementFailed{
+		err: err,
+	}
+}
+
+func (e *eventSystemMetricsMeasurementFailed) Event() {}
+
+func (e *eventSystemMetricsMeasurementFailed) String() string {
+	return e.err.Error()
+}
+
+func (e *eventSystemMetricsMeasurementFailed) Error() string {
+	return e.err.Error()
+}
+
+func (e *eventSystemMetricsMeasurementFailed) Err() error {
+	return e.err
+}
