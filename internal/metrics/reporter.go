@@ -51,7 +51,7 @@ type Reporter struct {
 	stored            Metrics
 	intervals         int
 	collectorReporter *collectorpb.Reporter
-	labels            map[string][]*collectorpb.KeyValue
+	labels            []*collectorpb.KeyValue
 	Start             time.Time
 	End               time.Time
 	MetricsCount      int
@@ -65,33 +65,22 @@ func attributesToTags(attributes map[string]string) []*collectorpb.KeyValue {
 	return tags
 }
 
-func getLabels() map[string][]*collectorpb.KeyValue {
-	return map[string][]*collectorpb.KeyValue{
-		"process.cpu": []*collectorpb.KeyValue{
-			&collectorpb.KeyValue{
-				Key:   "name",
-				Value: &collectorpb.KeyValue_StringValue{StringValue: "process.cpu"},
-			},
-		},
-		"runtime": []*collectorpb.KeyValue{
-			&collectorpb.KeyValue{
-				Key:   "name",
-				Value: &collectorpb.KeyValue_StringValue{StringValue: "runtime"},
-			},
-		},
-		"mem": []*collectorpb.KeyValue{
-			&collectorpb.KeyValue{
-				Key:   "name",
-				Value: &collectorpb.KeyValue_StringValue{StringValue: "mem"},
-			},
-		},
-		"system.cpu": []*collectorpb.KeyValue{
-			&collectorpb.KeyValue{
-				Key:   "name",
-				Value: &collectorpb.KeyValue_StringValue{StringValue: "system.cpu"},
-			},
-		},
+func getLabels(attributes map[string]string) []*collectorpb.KeyValue {
+	labels := []*collectorpb.KeyValue{}
+	filters := []string{
+		"lightstep.component_name",
+		"service.version",
+		"lightstep.hostname",
 	}
+	for k, v := range attributes {
+		for _, l := range filters {
+			if k == l {
+				labels = append(labels, &collectorpb.KeyValue{Key: k, Value: &collectorpb.KeyValue_StringValue{StringValue: v}})
+				break
+			}
+		}
+	}
+	return labels
 }
 
 func NewReporter(opts ...ReporterOption) *Reporter {
@@ -109,7 +98,7 @@ func NewReporter(opts ...ReporterOption) *Reporter {
 			ReporterId: c.tracerID,
 			Tags:       attributesToTags(c.attributes),
 		},
-		labels: getLabels(),
+		labels: getLabels(c.attributes),
 	}
 }
 
@@ -124,38 +113,38 @@ func (r *Reporter) prepareRequest(m Metrics) (*metricspb.IngestRequest, error) {
 	}, nil
 }
 
-func addFloat(labels []*collectorpb.KeyValue, key string, value float64, start time.Time, kind metricspb.MetricKind) *metricspb.MetricPoint {
+func (r *Reporter) addFloat(key string, value float64, kind metricspb.MetricKind) *metricspb.MetricPoint {
 	return &metricspb.MetricPoint{
 		Kind:       kind,
 		MetricName: key,
-		Labels:     labels,
+		Labels:     r.labels,
 		Value: &metricspb.MetricPoint_DoubleValue{
 			DoubleValue: value,
 		},
 		Start: &types.Timestamp{
-			Seconds: start.Unix(),
-			Nanos:   int32(start.Nanosecond()),
+			Seconds: r.Start.Unix(),
+			Nanos:   int32(r.Start.Nanosecond()),
 		},
 		Duration: &types.Duration{
-			Seconds: 0, // TODO: set duration to number of retries * flush interval
+			Seconds: int64(DefaultReporterMeasurementDuration.Seconds()), // TODO: set duration to number of retries * flush interval
 		},
 	}
 }
 
-func addUint(labels []*collectorpb.KeyValue, key string, value uint64, start time.Time, kind metricspb.MetricKind) *metricspb.MetricPoint {
+func (r *Reporter) addUint(key string, value uint64, kind metricspb.MetricKind) *metricspb.MetricPoint {
 	return &metricspb.MetricPoint{
 		Kind:       kind,
 		MetricName: key,
-		Labels:     labels,
+		Labels:     r.labels,
 		Value: &metricspb.MetricPoint_Uint64Value{
 			Uint64Value: value,
 		},
 		Start: &types.Timestamp{
-			Seconds: start.Unix(),
-			Nanos:   int32(start.Nanosecond()),
+			Seconds: r.Start.Unix(),
+			Nanos:   int32(r.Start.Nanosecond()),
 		},
 		Duration: &types.Duration{
-			Seconds: 0, // TODO: set duration to number of retries * flush interval
+			Seconds: int64(DefaultReporterMeasurementDuration.Seconds()), // TODO: set duration to number of retries * flush interval
 		},
 	}
 }
@@ -178,41 +167,27 @@ func (r *Reporter) Measure(ctx context.Context) error {
 		return err
 	}
 
-	pb.Points = append(pb.Points, addFloat(r.labels["process.cpu"], "runtime.go.cpu.user", m.ProcessCPU.User-r.stored.ProcessCPU.User, start, metricspb.MetricKind_COUNTER))
-	pb.Points = append(pb.Points, addFloat(r.labels["process.cpu"], "runtime.go.cpu.sys", m.ProcessCPU.System-r.stored.ProcessCPU.System, start, metricspb.MetricKind_COUNTER))
-	pb.Points = append(pb.Points, addUint(r.labels["runtime"], "runtime.go.gc.count", m.GarbageCollector.NumGC-r.stored.GarbageCollector.NumGC, start, metricspb.MetricKind_COUNTER))
+	pb.Points = append(pb.Points, r.addFloat("runtime.go.cpu.user", m.ProcessCPU.User-r.stored.ProcessCPU.User, metricspb.MetricKind_COUNTER))
+	pb.Points = append(pb.Points, r.addFloat("runtime.go.cpu.sys", m.ProcessCPU.System-r.stored.ProcessCPU.System, metricspb.MetricKind_COUNTER))
+	pb.Points = append(pb.Points, r.addUint("runtime.go.gc.count", m.GarbageCollector.NumGC-r.stored.GarbageCollector.NumGC, metricspb.MetricKind_COUNTER))
 
-	pb.Points = append(pb.Points, addUint(r.labels["mem"], "mem.available", m.Memory.Available, start, metricspb.MetricKind_GAUGE))
-	pb.Points = append(pb.Points, addUint(r.labels["mem"], "mem.total", m.Memory.Used, start, metricspb.MetricKind_GAUGE))
-	pb.Points = append(pb.Points, addUint(r.labels["mem"], "runtime.go.mem.heap_alloc", m.Memory.HeapAlloc, start, metricspb.MetricKind_GAUGE))
-	pb.Points = append(pb.Points, addFloat(r.labels["system.cpu"], "cpu.percent", m.CPUPercent, start, metricspb.MetricKind_GAUGE))
+	pb.Points = append(pb.Points, r.addUint("mem.available", m.Memory.Available, metricspb.MetricKind_GAUGE))
+	pb.Points = append(pb.Points, r.addUint("mem.total", m.Memory.Used, metricspb.MetricKind_GAUGE))
+	pb.Points = append(pb.Points, r.addUint("runtime.go.mem.heap_alloc", m.Memory.HeapAlloc, metricspb.MetricKind_GAUGE))
 
 	for label, cpu := range m.CPU {
-		labels := []*collectorpb.KeyValue{
-			&collectorpb.KeyValue{
-				Key:   "name",
-				Value: &collectorpb.KeyValue_StringValue{StringValue: label},
-			},
-		}
-
-		pb.Points = append(pb.Points, addFloat(labels, "cpu.sys", cpu.System-r.stored.CPU[label].System, start, metricspb.MetricKind_COUNTER))
-		pb.Points = append(pb.Points, addFloat(labels, "cpu.user", cpu.User-r.stored.CPU[label].User, start, metricspb.MetricKind_COUNTER))
-		pb.Points = append(pb.Points, addFloat(labels, "cpu.idle", cpu.Idle-r.stored.CPU[label].Idle, start, metricspb.MetricKind_COUNTER))
-		pb.Points = append(pb.Points, addFloat(labels, "cpu.steal", cpu.Steal-r.stored.CPU[label].Steal, start, metricspb.MetricKind_COUNTER))
-		pb.Points = append(pb.Points, addFloat(labels, "cpu.nice", cpu.Nice-r.stored.CPU[label].Nice, start, metricspb.MetricKind_COUNTER))
+		pb.Points = append(pb.Points, r.addFloat("cpu.sys", cpu.System-r.stored.CPU[label].System, metricspb.MetricKind_COUNTER))
+		pb.Points = append(pb.Points, r.addFloat("cpu.user", cpu.User-r.stored.CPU[label].User, metricspb.MetricKind_COUNTER))
+		pb.Points = append(pb.Points, r.addFloat("cpu.total", cpu.Total-r.stored.CPU[label].Total, metricspb.MetricKind_COUNTER))
+		pb.Points = append(pb.Points, r.addFloat("cpu.usage", cpu.Usage-r.stored.CPU[label].Usage, metricspb.MetricKind_COUNTER))
 	}
 	for label, nic := range m.NIC {
-		labels := []*collectorpb.KeyValue{
-			&collectorpb.KeyValue{
-				Key:   "name",
-				Value: &collectorpb.KeyValue_StringValue{StringValue: label},
-			},
-		}
-		pb.Points = append(pb.Points, addUint(labels, "net.bytes_recv", nic.BytesReceived-r.stored.NIC[label].BytesReceived, start, metricspb.MetricKind_COUNTER))
-		pb.Points = append(pb.Points, addUint(labels, "net.bytes_sent", nic.BytesSent-r.stored.NIC[label].BytesSent, start, metricspb.MetricKind_COUNTER))
+		pb.Points = append(pb.Points, r.addUint("net.bytes_recv", nic.BytesReceived-r.stored.NIC[label].BytesReceived, metricspb.MetricKind_COUNTER))
+		pb.Points = append(pb.Points, r.addUint("net.bytes_sent", nic.BytesSent-r.stored.NIC[label].BytesSent, metricspb.MetricKind_COUNTER))
 	}
 
-	// fmt.Println(proto.MarshalTextString(pb))
+	fmt.Println(proto.MarshalTextString(pb))
+	fmt.Printf("sending metrics %s\n", r.address)
 	b, err := proto.Marshal(pb)
 	if err != nil {
 		return err
@@ -229,11 +204,13 @@ func (r *Reporter) Measure(ctx context.Context) error {
 	req.Header.Set(acceptHeader, protoContentType)
 	req.Header.Set(accessTokenHeader, r.accessToken)
 
+	fmt.Printf("headers: %v\n", req.Header)
+
 	res, err := r.client.Do(req)
 	if err != nil {
 		return err
 	}
-	// fmt.Println(res.Status)
+	fmt.Printf("response: %s\n", res.Status)
 	defer res.Body.Close()
 	r.stored = m
 	r.MetricsCount = len(pb.Points)

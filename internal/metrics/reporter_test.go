@@ -46,9 +46,8 @@ var _ = Describe("Reporter", func() {
 			expected := map[string]interface{}{
 				"cpu.user":                  metricspb.MetricKind_COUNTER,
 				"cpu.sys":                   metricspb.MetricKind_COUNTER,
-				"cpu.idle":                  metricspb.MetricKind_COUNTER,
-				"cpu.nice":                  metricspb.MetricKind_COUNTER,
-				"cpu.steal":                 metricspb.MetricKind_COUNTER,
+				"cpu.usage":                 metricspb.MetricKind_COUNTER,
+				"cpu.total":                 metricspb.MetricKind_COUNTER,
 				"cpu.percent":               metricspb.MetricKind_GAUGE,
 				"net.bytes_sent":            metricspb.MetricKind_COUNTER,
 				"net.bytes_recv":            metricspb.MetricKind_COUNTER,
@@ -64,8 +63,6 @@ var _ = Describe("Reporter", func() {
 				name := point.GetMetricName()
 				Expect(point.Kind).To(Equal(expected[name]))
 			}
-
-			// TODO: check that we're sending a delta
 		})
 	})
 })

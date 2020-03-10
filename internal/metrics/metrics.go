@@ -33,9 +33,8 @@ type ProcessCPU struct {
 type CPU struct {
 	User   float64
 	System float64
-	Idle   float64
-	Steal  float64
-	Nice   float64
+	Usage  float64
+	Total  float64
 }
 
 type NIC struct {
@@ -101,13 +100,13 @@ func Measure(ctx context.Context, interval time.Duration) (Metrics, error) {
 		GarbageCollector: gc,
 	}
 
-	for _, m := range systemTimes {
-		metrics.CPU[m.CPU] = CPU{
-			User:   m.User,
-			System: m.System,
-			Idle:   m.Idle,
-			Steal:  m.Steal,
-			Nice:   m.Nice,
+	for _, t := range systemTimes {
+		usage := t.User + t.System + t.Nice + t.Iowait + t.Irq + t.Softirq + t.Steal
+		metrics.CPU[t.CPU] = CPU{
+			User:   t.User,
+			System: t.System,
+			Usage:  usage,
+			Total:  usage + t.Idle,
 		}
 	}
 
