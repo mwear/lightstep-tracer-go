@@ -381,3 +381,30 @@ func (e *eventSystemMetricsMeasurementFailed) Error() string {
 func (e *eventSystemMetricsMeasurementFailed) Err() error {
 	return e.err
 }
+
+type eventSystemMetricsStatusReport struct {
+	startTime   time.Time
+	finishTime  time.Time
+	sentMetrics int
+}
+
+func newEventSystemMetricsStatusReport(
+	startTime, finishTime time.Time,
+	sentMetrics int,
+) *eventSystemMetricsStatusReport {
+	return &eventSystemMetricsStatusReport{
+		startTime:   startTime,
+		finishTime:  finishTime,
+		sentMetrics: sentMetrics,
+	}
+}
+
+func (e *eventSystemMetricsStatusReport) Event() {}
+
+func (e *eventSystemMetricsStatusReport) String() string {
+	return fmt.Sprint(
+		"METRICS STATUS REPORT start: ", e.startTime,
+		", end: ", e.finishTime,
+		", sent metrics: ", e.sentMetrics,
+	)
+}

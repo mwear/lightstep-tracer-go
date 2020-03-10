@@ -52,6 +52,9 @@ type Reporter struct {
 	intervals         int
 	collectorReporter *collectorpb.Reporter
 	labels            map[string][]*collectorpb.KeyValue
+	Start             time.Time
+	End               time.Time
+	MetricsCount      int
 }
 
 func attributesToTags(attributes map[string]string) []*collectorpb.KeyValue {
@@ -161,6 +164,7 @@ func addUint(labels []*collectorpb.KeyValue, key string, value uint64, start tim
 // to a LightStep endpoint.
 func (r *Reporter) Measure(ctx context.Context) error {
 	start := time.Now()
+	r.Start = start
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 
@@ -232,7 +236,8 @@ func (r *Reporter) Measure(ctx context.Context) error {
 	// fmt.Println(res.Status)
 	defer res.Body.Close()
 	r.stored = m
-
+	r.MetricsCount = len(pb.Points)
+	r.End = time.Now()
 	return nil
 }
 

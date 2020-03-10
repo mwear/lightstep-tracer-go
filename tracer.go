@@ -488,6 +488,11 @@ func (tracer *tracerImpl) systemMetricsLoop() {
 		if err := tracer.metricsReporter.Measure(ctx); err != nil {
 			emitEvent(newEventSystemMetricsMeasurementFailed(err))
 		}
+		emitEvent(newEventSystemMetricsStatusReport(
+			tracer.metricsReporter.Start,
+			tracer.metricsReporter.End,
+			tracer.metricsReporter.MetricsCount)
+		)
 	}
 
 	measure()
