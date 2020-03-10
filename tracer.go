@@ -246,8 +246,12 @@ func (tracer *tracerImpl) reconnectClient(now time.Time) {
 func (tracer *tracerImpl) Close(ctx context.Context) {
 	tracer.closeOnce.Do(func() {
 		// notify report loop that we are closing
-		close(tracer.closeReportLoopChannel)
-		close(tracer.closeSystemMetricsLoopChannel)
+		if tracer.closeReportLoopChannel != nil {
+			close(tracer.closeReportLoopChannel)
+		}
+		if tracer.closeSystemMetricsLoopChannel != nil {
+			close(tracer.closeSystemMetricsLoopChannel)
+		}
 		select {
 		case <-tracer.reportLoopClosedChannel:
 			tracer.Flush(ctx)
