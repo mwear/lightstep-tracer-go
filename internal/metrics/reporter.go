@@ -51,6 +51,7 @@ type Reporter struct {
 	stored            Metrics
 	intervals         int
 	collectorReporter *collectorpb.Reporter
+	labels            map[string][]*collectorpb.KeyValue
 }
 
 func attributesToTags(attributes map[string]string) []*collectorpb.KeyValue {
@@ -59,6 +60,35 @@ func attributesToTags(attributes map[string]string) []*collectorpb.KeyValue {
 		tags = append(tags, &collectorpb.KeyValue{Key: k, Value: &collectorpb.KeyValue_StringValue{StringValue: v}})
 	}
 	return tags
+}
+
+func getLabels() map[string][]*collectorpb.KeyValue {
+	return map[string][]*collectorpb.KeyValue{
+		"process.cpu": []*collectorpb.KeyValue{
+			&collectorpb.KeyValue{
+				Key:   "name",
+				Value: &collectorpb.KeyValue_StringValue{StringValue: "process.cpu"},
+			},
+		},
+		"runtime": []*collectorpb.KeyValue{
+			&collectorpb.KeyValue{
+				Key:   "name",
+				Value: &collectorpb.KeyValue_StringValue{StringValue: "runtime"},
+			},
+		},
+		"mem": []*collectorpb.KeyValue{
+			&collectorpb.KeyValue{
+				Key:   "name",
+				Value: &collectorpb.KeyValue_StringValue{StringValue: "mem"},
+			},
+		},
+		"system.cpu": []*collectorpb.KeyValue{
+			&collectorpb.KeyValue{
+				Key:   "name",
+				Value: &collectorpb.KeyValue_StringValue{StringValue: "system.cpu"},
+			},
+		},
+	}
 }
 
 func NewReporter(opts ...ReporterOption) *Reporter {
@@ -76,6 +106,7 @@ func NewReporter(opts ...ReporterOption) *Reporter {
 			ReporterId: c.tracerID,
 			Tags:       attributesToTags(c.attributes),
 		},
+		labels: getLabels(),
 	}
 }
 
@@ -143,29 +174,17 @@ func (r *Reporter) Measure(ctx context.Context) error {
 		return err
 	}
 
-	labels := []*collectorpb.KeyValue{
-		&collectorpb.KeyValue{
-			Key:   "name",
-			Value: &collectorpb.KeyValue_StringValue{StringValue: "process.cpu"},
-		},
-	}
-	pb.Points = append(pb.Points, addFloat(labels, "runtime.go.cpu.user", m.ProcessCPU.User-r.stored.ProcessCPU.User, start, metricspb.MetricKind_COUNTER))
-	pb.Points = append(pb.Points, addFloat(labels, "runtime.go.cpu.sys", m.ProcessCPU.System-r.stored.ProcessCPU.System, start, metricspb.MetricKind_COUNTER))
-	pb.Points = append(pb.Points, addUint(labels, "runtime.go.gc.count", m.GarbageCollector.NumGC-r.stored.GarbageCollector.NumGC, start, metricspb.MetricKind_COUNTER))
+	pb.Points = append(pb.Points, addFloat(r.labels["process.cpu"], "runtime.go.cpu.user", m.ProcessCPU.User-r.stored.ProcessCPU.User, start, metricspb.MetricKind_COUNTER))
+	pb.Points = append(pb.Points, addFloat(r.labels["process.cpu"], "runtime.go.cpu.sys", m.ProcessCPU.System-r.stored.ProcessCPU.System, start, metricspb.MetricKind_COUNTER))
+	pb.Points = append(pb.Points, addUint(r.labels["runtime"], "runtime.go.gc.count", m.GarbageCollector.NumGC-r.stored.GarbageCollector.NumGC, start, metricspb.MetricKind_COUNTER))
 
-	labels = []*collectorpb.KeyValue{
-		&collectorpb.KeyValue{
-			Key:   "name",
-			Value: &collectorpb.KeyValue_StringValue{StringValue: "mem"},
-		},
-	}
-	pb.Points = append(pb.Points, addUint(labels, "mem.available", m.Memory.Available, start, metricspb.MetricKind_GAUGE))
-	pb.Points = append(pb.Points, addUint(labels, "mem.total", m.Memory.Used, start, metricspb.MetricKind_GAUGE))
-	pb.Points = append(pb.Points, addUint(labels, "runtime.go.mem.heap_alloc", m.Memory.HeapAlloc, start, metricspb.MetricKind_GAUGE))
-	pb.Points = append(pb.Points, addFloat(labels, "cpu.percent", m.CPUPercent, start, metricspb.MetricKind_GAUGE))
+	pb.Points = append(pb.Points, addUint(r.labels["mem"], "mem.available", m.Memory.Available, start, metricspb.MetricKind_GAUGE))
+	pb.Points = append(pb.Points, addUint(r.labels["mem"], "mem.total", m.Memory.Used, start, metricspb.MetricKind_GAUGE))
+	pb.Points = append(pb.Points, addUint(r.labels["mem"], "runtime.go.mem.heap_alloc", m.Memory.HeapAlloc, start, metricspb.MetricKind_GAUGE))
+	pb.Points = append(pb.Points, addFloat(r.labels["system.cpu"], "cpu.percent", m.CPUPercent, start, metricspb.MetricKind_GAUGE))
 
 	for label, cpu := range m.CPU {
-		labels = []*collectorpb.KeyValue{
+		labels := []*collectorpb.KeyValue{
 			&collectorpb.KeyValue{
 				Key:   "name",
 				Value: &collectorpb.KeyValue_StringValue{StringValue: label},
@@ -179,7 +198,7 @@ func (r *Reporter) Measure(ctx context.Context) error {
 		pb.Points = append(pb.Points, addFloat(labels, "cpu.nice", cpu.Nice-r.stored.CPU[label].Nice, start, metricspb.MetricKind_COUNTER))
 	}
 	for label, nic := range m.NIC {
-		labels = []*collectorpb.KeyValue{
+		labels := []*collectorpb.KeyValue{
 			&collectorpb.KeyValue{
 				Key:   "name",
 				Value: &collectorpb.KeyValue_StringValue{StringValue: label},
@@ -210,6 +229,7 @@ func (r *Reporter) Measure(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	// fmt.Println(res.Status)
 	defer res.Body.Close()
 	r.stored = m
 
