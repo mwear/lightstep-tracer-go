@@ -491,7 +491,7 @@ func (tracer *tracerImpl) systemMetricsLoop() {
 		emitEvent(newEventSystemMetricsStatusReport(
 			tracer.metricsReporter.Start,
 			tracer.metricsReporter.End,
-			tracer.metricsReporter.MetricsCount)
+			tracer.metricsReporter.MetricsCount),
 		)
 	}
 
