@@ -48,7 +48,6 @@ var _ = Describe("Reporter", func() {
 				"cpu.sys":                   metricspb.MetricKind_COUNTER,
 				"cpu.usage":                 metricspb.MetricKind_COUNTER,
 				"cpu.total":                 metricspb.MetricKind_COUNTER,
-				"cpu.percent":               metricspb.MetricKind_GAUGE,
 				"net.bytes_sent":            metricspb.MetricKind_COUNTER,
 				"net.bytes_recv":            metricspb.MetricKind_COUNTER,
 				"mem.total":                 metricspb.MetricKind_GAUGE,

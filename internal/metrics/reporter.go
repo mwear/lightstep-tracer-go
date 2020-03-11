@@ -131,24 +131,6 @@ func (r *Reporter) addFloat(key string, value float64, kind metricspb.MetricKind
 	}
 }
 
-func (r *Reporter) addUint(key string, value uint64, kind metricspb.MetricKind) *metricspb.MetricPoint {
-	return &metricspb.MetricPoint{
-		Kind:       kind,
-		MetricName: key,
-		Labels:     r.labels,
-		Value: &metricspb.MetricPoint_Uint64Value{
-			Uint64Value: value,
-		},
-		Start: &types.Timestamp{
-			Seconds: r.Start.Unix(),
-			Nanos:   int32(r.Start.Nanosecond()),
-		},
-		Duration: &types.Duration{
-			Seconds: int64(DefaultReporterMeasurementDuration.Seconds()), // TODO: set duration to number of retries * flush interval
-		},
-	}
-}
-
 // Measure takes a snapshot of system metrics and sends them
 // to a LightStep endpoint.
 func (r *Reporter) Measure(ctx context.Context) error {
@@ -169,11 +151,11 @@ func (r *Reporter) Measure(ctx context.Context) error {
 
 	pb.Points = append(pb.Points, r.addFloat("runtime.go.cpu.user", m.ProcessCPU.User-r.stored.ProcessCPU.User, metricspb.MetricKind_COUNTER))
 	pb.Points = append(pb.Points, r.addFloat("runtime.go.cpu.sys", m.ProcessCPU.System-r.stored.ProcessCPU.System, metricspb.MetricKind_COUNTER))
-	pb.Points = append(pb.Points, r.addUint("runtime.go.gc.count", m.GarbageCollector.NumGC-r.stored.GarbageCollector.NumGC, metricspb.MetricKind_COUNTER))
+	pb.Points = append(pb.Points, r.addFloat("runtime.go.gc.count", float64(m.GarbageCollector.NumGC-r.stored.GarbageCollector.NumGC), metricspb.MetricKind_COUNTER))
 
-	pb.Points = append(pb.Points, r.addUint("mem.available", m.Memory.Available, metricspb.MetricKind_GAUGE))
-	pb.Points = append(pb.Points, r.addUint("mem.total", m.Memory.Used, metricspb.MetricKind_GAUGE))
-	pb.Points = append(pb.Points, r.addUint("runtime.go.mem.heap_alloc", m.Memory.HeapAlloc, metricspb.MetricKind_GAUGE))
+	pb.Points = append(pb.Points, r.addFloat("mem.available", float64(m.Memory.Available), metricspb.MetricKind_GAUGE))
+	pb.Points = append(pb.Points, r.addFloat("mem.total", float64(m.Memory.Used), metricspb.MetricKind_GAUGE))
+	pb.Points = append(pb.Points, r.addFloat("runtime.go.mem.heap_alloc", float64(m.Memory.HeapAlloc), metricspb.MetricKind_GAUGE))
 
 	for label, cpu := range m.CPU {
 		pb.Points = append(pb.Points, r.addFloat("cpu.sys", cpu.System-r.stored.CPU[label].System, metricspb.MetricKind_COUNTER))
@@ -182,12 +164,11 @@ func (r *Reporter) Measure(ctx context.Context) error {
 		pb.Points = append(pb.Points, r.addFloat("cpu.usage", cpu.Usage-r.stored.CPU[label].Usage, metricspb.MetricKind_COUNTER))
 	}
 	for label, nic := range m.NIC {
-		pb.Points = append(pb.Points, r.addUint("net.bytes_recv", nic.BytesReceived-r.stored.NIC[label].BytesReceived, metricspb.MetricKind_COUNTER))
-		pb.Points = append(pb.Points, r.addUint("net.bytes_sent", nic.BytesSent-r.stored.NIC[label].BytesSent, metricspb.MetricKind_COUNTER))
+		pb.Points = append(pb.Points, r.addFloat("net.bytes_recv", float64(nic.BytesReceived-r.stored.NIC[label].BytesReceived), metricspb.MetricKind_COUNTER))
+		pb.Points = append(pb.Points, r.addFloat("net.bytes_sent", float64(nic.BytesSent-r.stored.NIC[label].BytesSent), metricspb.MetricKind_COUNTER))
 	}
 
-	fmt.Println(proto.MarshalTextString(pb))
-	fmt.Printf("sending metrics %s\n", r.address)
+	// fmt.Println(proto.MarshalTextString(pb))
 	b, err := proto.Marshal(pb)
 	if err != nil {
 		return err
@@ -204,13 +185,10 @@ func (r *Reporter) Measure(ctx context.Context) error {
 	req.Header.Set(acceptHeader, protoContentType)
 	req.Header.Set(accessTokenHeader, r.accessToken)
 
-	fmt.Printf("headers: %v\n", req.Header)
-
 	res, err := r.client.Do(req)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("response: %s\n", res.Status)
 	defer res.Body.Close()
 	r.stored = m
 	r.MetricsCount = len(pb.Points)
