@@ -45,6 +45,7 @@ const (
 	GUIDKey           = "lightstep.guid" // <- runtime guid, not span guid
 	HostnameKey       = "lightstep.hostname"
 	CommandLineKey    = "lightstep.command_line"
+	ServiceVersionKey = "service.version"
 
 	TracerPlatformKey        = "lightstep.tracer_platform"
 	TracerPlatformValue      = "go"
