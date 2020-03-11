@@ -143,6 +143,7 @@ func CreateTracer(opts Options) (Tracer, error) {
 				metrics.ReporterPlatformVersionKey: runtime.Version(),
 				metrics.ReporterVersionKey:         TracerVersionValue,
 				HostnameKey:                        attributes[HostnameKey],
+				ServiceVersionKey:                  attributes[ServiceVersionKey],
 				ComponentNameKey:                   attributes[ComponentNameKey],
 			}),
 		),

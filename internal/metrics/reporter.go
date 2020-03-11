@@ -75,7 +75,9 @@ func getLabels(attributes map[string]string) []*collectorpb.KeyValue {
 	for k, v := range attributes {
 		for _, l := range filters {
 			if k == l {
-				labels = append(labels, &collectorpb.KeyValue{Key: k, Value: &collectorpb.KeyValue_StringValue{StringValue: v}})
+				if len(v) > 0 {
+					labels = append(labels, &collectorpb.KeyValue{Key: k, Value: &collectorpb.KeyValue_StringValue{StringValue: v}})
+				}
 				break
 			}
 		}
