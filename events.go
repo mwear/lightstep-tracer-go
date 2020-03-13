@@ -101,11 +101,11 @@ func (e *eventFlushError) State() EventFlushErrorState {
 }
 
 func (e *eventFlushError) String() string {
-	return e.err.Error()
+	return e.Error()
 }
 
 func (e *eventFlushError) Error() string {
-	return e.err.Error()
+	return e.Err().Error()
 }
 
 func (e *eventFlushError) Err() error {
@@ -131,11 +131,11 @@ func (*eventConnectionError) Event()                {}
 func (*eventConnectionError) EventConnectionError() {}
 
 func (e *eventConnectionError) String() string {
-	return e.err.Error()
+	return e.Error()
 }
 
 func (e *eventConnectionError) Error() string {
-	return e.err.Error()
+	return e.Err().Error()
 }
 
 func (e *eventConnectionError) Err() error {
@@ -270,11 +270,11 @@ func (e *eventUnsupportedTracer) Tracer() opentracing.Tracer {
 }
 
 func (e *eventUnsupportedTracer) String() string {
-	return e.err.Error()
+	return e.Error()
 }
 
 func (e *eventUnsupportedTracer) Error() string {
-	return e.err.Error()
+	return e.Err().Error()
 }
 
 func (e *eventUnsupportedTracer) Err() error {
@@ -322,11 +322,11 @@ func (e *eventUnsupportedValue) Value() interface{} {
 }
 
 func (e *eventUnsupportedValue) String() string {
-	return e.err.Error()
+	return e.Error()
 }
 
 func (e *eventUnsupportedValue) Error() string {
-	return e.err.Error()
+	return e.Err().Error()
 }
 
 func (e *eventUnsupportedValue) Err() error {
@@ -371,11 +371,11 @@ func newEventSystemMetricsMeasurementFailed(err error) *eventSystemMetricsMeasur
 func (e *eventSystemMetricsMeasurementFailed) Event() {}
 
 func (e *eventSystemMetricsMeasurementFailed) String() string {
-	return e.err.Error()
+	return e.Error()
 }
 
 func (e *eventSystemMetricsMeasurementFailed) Error() string {
-	return e.err.Error()
+	return e.Err().Error()
 }
 
 func (e *eventSystemMetricsMeasurementFailed) Err() error {
