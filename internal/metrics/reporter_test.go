@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gogo/protobuf/proto"
 	"github.com/lightstep/lightstep-tracer-common/golang/gogo/metricspb"
@@ -35,8 +36,12 @@ var _ = Describe("Reporter", func() {
 	})
 	Describe("Measure", func() {
 		It("should return an IngestRequest", func() {
-			// metric := metrics.Metrics{}
-			err := reporter.Measure(context.Background())
+			// initial report always gets skipped
+			err := reporter.Measure(context.Background(), 1)
+			Expect(err).To(BeNil())
+			Expect(ingestRequest.GetPoints()).To(HaveLen(0))
+
+			err = reporter.Measure(context.Background(), 1)
 			if !Expect(err).To(BeNil()) {
 				return
 			}
@@ -62,6 +67,39 @@ var _ = Describe("Reporter", func() {
 				name := point.GetMetricName()
 				Expect(point.Kind).To(Equal(expected[name]))
 			}
+		})
+	})
+	Describe("Measure fails unretryably", func() {
+		It("should return an error", func() {
+			h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+			})
+			s := httptest.NewServer(h)
+			url := fmt.Sprintf("http://%s", s.Listener.Addr().String())
+			reporter = metrics.NewReporter(
+				metrics.WithReporterAddress(url),
+			)
+			reporter.Measure(context.Background(), 1)
+			err := reporter.Measure(context.Background(), 1)
+			Expect(err).To(Not(BeNil()))
+			Expect(err.Error()).To(ContainSubstring("404"))
+		})
+	})
+	Describe("Measure fails retryably", func() {
+		It("should return after retrying", func() {
+			h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusBadGateway)
+			})
+			s := httptest.NewServer(h)
+			url := fmt.Sprintf("http://%s", s.Listener.Addr().String())
+			reporter = metrics.NewReporter(
+				metrics.WithReporterAddress(url),
+				metrics.WithReporterTimeout(200*time.Millisecond),
+			)
+			reporter.Measure(context.Background(), 1)
+			err := reporter.Measure(context.Background(), 1)
+			Expect(err).To(Not(BeNil()))
+			Expect(err.Error()).To(ContainSubstring("context deadline exceeded"))
 		})
 	})
 })

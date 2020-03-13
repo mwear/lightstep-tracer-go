@@ -7,6 +7,7 @@ import (
 	"encoding/base32"
 	"fmt"
 	"io"
+	mathrand "math/rand"
 	"net/http"
 	"strings"
 	"time"
@@ -42,19 +43,19 @@ const (
 )
 
 type Reporter struct {
-	client            *http.Client
-	tracerID          uint64
-	attributes        map[string]string
-	address           string
-	timeout           time.Duration
-	accessToken       string
-	stored            Metrics
-	intervals         int
-	collectorReporter *collectorpb.Reporter
-	labels            []*collectorpb.KeyValue
-	Start             time.Time
-	End               time.Time
-	MetricsCount      int
+	client               *http.Client
+	tracerID             uint64
+	attributes           map[string]string
+	address              string
+	timeout              time.Duration
+	accessToken          string
+	stored               Metrics
+	collectorReporter    *collectorpb.Reporter
+	labels               []*collectorpb.KeyValue
+	Start                time.Time
+	End                  time.Time
+	MetricsCount         int
+	skippedInitialReport bool
 }
 
 func attributesToTags(attributes map[string]string) []*collectorpb.KeyValue {
@@ -95,7 +96,6 @@ func NewReporter(opts ...ReporterOption) *Reporter {
 		address:     fmt.Sprintf("%s%s", c.address, reporterPath),
 		timeout:     c.timeout,
 		accessToken: c.accessToken,
-		intervals:   1,
 		collectorReporter: &collectorpb.Reporter{
 			ReporterId: c.tracerID,
 			Tags:       attributesToTags(c.attributes),
@@ -115,7 +115,7 @@ func (r *Reporter) prepareRequest(m Metrics) (*metricspb.IngestRequest, error) {
 	}, nil
 }
 
-func (r *Reporter) addFloat(key string, value float64, kind metricspb.MetricKind) *metricspb.MetricPoint {
+func (r *Reporter) addFloat(key string, value float64, kind metricspb.MetricKind, intervals int64) *metricspb.MetricPoint {
 	return &metricspb.MetricPoint{
 		Kind:       kind,
 		MetricName: key,
@@ -128,14 +128,14 @@ func (r *Reporter) addFloat(key string, value float64, kind metricspb.MetricKind
 			Nanos:   int32(r.Start.Nanosecond()),
 		},
 		Duration: &types.Duration{
-			Seconds: int64(DefaultReporterMeasurementDuration.Seconds()), // TODO: set duration to number of retries * flush interval
+			Seconds: int64(DefaultReporterMeasurementDuration.Seconds()) * intervals,
 		},
 	}
 }
 
 // Measure takes a snapshot of system metrics and sends them
 // to a LightStep endpoint.
-func (r *Reporter) Measure(ctx context.Context) error {
+func (r *Reporter) Measure(ctx context.Context, intervals int64) error {
 	start := time.Now()
 	r.Start = start
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
@@ -151,31 +151,41 @@ func (r *Reporter) Measure(ctx context.Context) error {
 		return err
 	}
 
-	pb.Points = append(pb.Points, r.addFloat("runtime.go.cpu.user", m.ProcessCPU.User-r.stored.ProcessCPU.User, metricspb.MetricKind_COUNTER))
-	pb.Points = append(pb.Points, r.addFloat("runtime.go.cpu.sys", m.ProcessCPU.System-r.stored.ProcessCPU.System, metricspb.MetricKind_COUNTER))
-	pb.Points = append(pb.Points, r.addFloat("runtime.go.gc.count", float64(m.GarbageCollector.NumGC-r.stored.GarbageCollector.NumGC), metricspb.MetricKind_COUNTER))
+	pb.Points = append(pb.Points, r.addFloat("runtime.go.cpu.user", m.ProcessCPU.User-r.stored.ProcessCPU.User, metricspb.MetricKind_COUNTER, intervals))
+	pb.Points = append(pb.Points, r.addFloat("runtime.go.cpu.sys", m.ProcessCPU.System-r.stored.ProcessCPU.System, metricspb.MetricKind_COUNTER, intervals))
+	pb.Points = append(pb.Points, r.addFloat("runtime.go.gc.count", float64(m.GarbageCollector.NumGC-r.stored.GarbageCollector.NumGC), metricspb.MetricKind_COUNTER, intervals))
 
-	pb.Points = append(pb.Points, r.addFloat("mem.available", float64(m.Memory.Available), metricspb.MetricKind_GAUGE))
-	pb.Points = append(pb.Points, r.addFloat("mem.total", float64(m.Memory.Used), metricspb.MetricKind_GAUGE))
-	pb.Points = append(pb.Points, r.addFloat("runtime.go.mem.heap_alloc", float64(m.Memory.HeapAlloc), metricspb.MetricKind_GAUGE))
+	pb.Points = append(pb.Points, r.addFloat("mem.available", float64(m.Memory.Available), metricspb.MetricKind_GAUGE, intervals))
+	pb.Points = append(pb.Points, r.addFloat("mem.total", float64(m.Memory.Used), metricspb.MetricKind_GAUGE, intervals))
+	pb.Points = append(pb.Points, r.addFloat("runtime.go.mem.heap_alloc", float64(m.Memory.HeapAlloc), metricspb.MetricKind_GAUGE, intervals))
 
 	for label, cpu := range m.CPU {
-		pb.Points = append(pb.Points, r.addFloat("cpu.sys", cpu.System-r.stored.CPU[label].System, metricspb.MetricKind_COUNTER))
-		pb.Points = append(pb.Points, r.addFloat("cpu.user", cpu.User-r.stored.CPU[label].User, metricspb.MetricKind_COUNTER))
-		pb.Points = append(pb.Points, r.addFloat("cpu.total", cpu.Total-r.stored.CPU[label].Total, metricspb.MetricKind_COUNTER))
-		pb.Points = append(pb.Points, r.addFloat("cpu.usage", cpu.Usage-r.stored.CPU[label].Usage, metricspb.MetricKind_COUNTER))
+		pb.Points = append(pb.Points, r.addFloat("cpu.sys", cpu.System-r.stored.CPU[label].System, metricspb.MetricKind_COUNTER, intervals))
+		pb.Points = append(pb.Points, r.addFloat("cpu.user", cpu.User-r.stored.CPU[label].User, metricspb.MetricKind_COUNTER, intervals))
+		pb.Points = append(pb.Points, r.addFloat("cpu.total", cpu.Total-r.stored.CPU[label].Total, metricspb.MetricKind_COUNTER, intervals))
+		pb.Points = append(pb.Points, r.addFloat("cpu.usage", cpu.Usage-r.stored.CPU[label].Usage, metricspb.MetricKind_COUNTER, intervals))
 	}
 	for label, nic := range m.NIC {
-		pb.Points = append(pb.Points, r.addFloat("net.bytes_recv", float64(nic.BytesReceived-r.stored.NIC[label].BytesReceived), metricspb.MetricKind_COUNTER))
-		pb.Points = append(pb.Points, r.addFloat("net.bytes_sent", float64(nic.BytesSent-r.stored.NIC[label].BytesSent), metricspb.MetricKind_COUNTER))
+		pb.Points = append(pb.Points, r.addFloat("net.bytes_recv", float64(nic.BytesReceived-r.stored.NIC[label].BytesReceived), metricspb.MetricKind_COUNTER, intervals))
+		pb.Points = append(pb.Points, r.addFloat("net.bytes_sent", float64(nic.BytesSent-r.stored.NIC[label].BytesSent), metricspb.MetricKind_COUNTER, intervals))
 	}
 
-	// fmt.Println(proto.MarshalTextString(pb))
-	b, err := proto.Marshal(pb)
+	err = r.send(ctx, pb)
 	if err != nil {
 		return err
 	}
 
+	r.stored = m
+	r.MetricsCount = len(pb.Points)
+	r.End = time.Now()
+	return nil
+}
+
+func (r *Reporter) send(ctx context.Context, ingestRequest *metricspb.IngestRequest) error {
+	b, err := proto.Marshal(ingestRequest)
+	if err != nil {
+		return err
+	}
 	req, err := http.NewRequest(http.MethodPost, r.address, bytes.NewReader(b))
 	if err != nil {
 		return err
@@ -187,15 +197,36 @@ func (r *Reporter) Measure(ctx context.Context) error {
 	req.Header.Set(acceptHeader, protoContentType)
 	req.Header.Set(accessTokenHeader, r.accessToken)
 
-	res, err := r.client.Do(req)
-	if err != nil {
-		return err
+	if !r.skippedInitialReport {
+		// intentionally skip initial delta report
+		r.skippedInitialReport = true
+		return nil
 	}
-	defer res.Body.Close()
-	r.stored = m
-	r.MetricsCount = len(pb.Points)
-	r.End = time.Now()
-	return nil
+
+	retries := uint(0)
+	waited := 0
+	for {
+		res, err := r.client.Do(req)
+		if err != nil {
+			return err
+		}
+		defer res.Body.Close()
+		if res.StatusCode == http.StatusOK {
+			return nil
+		}
+		defer res.Body.Close()
+		if !retryable(res.StatusCode) {
+			return fmt.Errorf("request to %s failed: %d", r.address, res.StatusCode)
+		}
+		if (time.Duration(waited) * time.Millisecond) > r.timeout {
+			return fmt.Errorf("request to %s failed: too many retries", r.address)
+		}
+		res.Body.Close()
+		retries++
+		backoff := calculateBackoff(retries)
+		time.Sleep(time.Duration(backoff) * time.Millisecond)
+		waited += backoff
+	}
 }
 
 type ReporterOption func(*config)
@@ -278,4 +309,19 @@ func generateIdempotencyKey() (string, error) {
 	}
 
 	return strings.ToLower(base32.StdEncoding.EncodeToString(b)), nil
+}
+
+func retryable(code int) bool {
+	return code == http.StatusTooManyRequests ||
+		code == http.StatusBadGateway ||
+		code == http.StatusGatewayTimeout ||
+		code == http.StatusServiceUnavailable ||
+		code == http.StatusRequestTimeout
+
+}
+
+func calculateBackoff(retries uint) int {
+	secondInMillis := 1000
+	multiplier := 1 << (retries - 1)
+	return (multiplier * mathrand.Intn(secondInMillis)) + (multiplier * secondInMillis)
 }

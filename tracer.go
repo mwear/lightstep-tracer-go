@@ -481,22 +481,27 @@ func (tracer *tracerImpl) reportLoop() {
 
 func (tracer *tracerImpl) systemMetricsLoop() {
 	ticker := time.NewTicker(tracer.metricsMeasurementFrequency)
+	intervals := int64(1)
 
-	measure := func() {
+	measure := func(intervals int64) int64 {
 		ctx, cancel := context.WithTimeout(context.Background(), tracer.metricsMeasurementFrequency)
 		defer cancel()
 
-		if err := tracer.metricsReporter.Measure(ctx); err != nil {
+		if err := tracer.metricsReporter.Measure(ctx, intervals); err != nil {
 			emitEvent(newEventSystemMetricsMeasurementFailed(err))
+			intervals++
+		} else {
+			intervals = 1
 		}
 		emitEvent(newEventSystemMetricsStatusReport(
 			tracer.metricsReporter.Start,
 			tracer.metricsReporter.End,
 			tracer.metricsReporter.MetricsCount),
 		)
+		return intervals
 	}
 
-	measure()
+	intervals = measure(intervals)
 
 	for {
 		select {
@@ -505,7 +510,7 @@ func (tracer *tracerImpl) systemMetricsLoop() {
 				return
 			}
 
-			measure()
+			intervals = measure(intervals)
 		case <-tracer.closeSystemMetricsLoopChannel:
 			return
 		}
