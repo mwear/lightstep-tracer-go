@@ -17,7 +17,6 @@ type Metrics struct {
 	CPU              map[string]CPU
 	NIC              map[string]NIC
 	Memory           Memory
-	CPUPercent       float64
 	GarbageCollector GarbageCollector
 }
 
@@ -64,11 +63,6 @@ func Measure(ctx context.Context, interval time.Duration) (Metrics, error) {
 		return Metrics{}, err
 	}
 
-	percentages, err := cpu.PercentWithContext(ctx, interval, false)
-	if err != nil {
-		return Metrics{}, err
-	}
-
 	netStats, err := net.IOCountersWithContext(ctx, false)
 	if err != nil {
 		return Metrics{}, err
@@ -108,10 +102,6 @@ func Measure(ctx context.Context, interval time.Duration) (Metrics, error) {
 			Usage:  usage,
 			Total:  usage + t.Idle,
 		}
-	}
-
-	for _, p := range percentages {
-		metrics.CPUPercent = p
 	}
 
 	for _, counters := range netStats {
