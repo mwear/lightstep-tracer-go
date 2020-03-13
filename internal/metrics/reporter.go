@@ -19,8 +19,7 @@ import (
 )
 
 const (
-	// DefaultReporterAddress             = "https://metricingest.lightstep.com"
-	DefaultReporterAddress             = "http://localhost:9876"
+	DefaultReporterAddress             = "https://ingest.lightstep.com:443"
 	DefaultReporterTimeout             = time.Second * 5
 	DefaultReporterMeasurementDuration = time.Second * 30
 )

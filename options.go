@@ -20,7 +20,7 @@ const (
 	DefaultSecurePort        = 443
 	DefaultGRPCCollectorHost = "collector-grpc.lightstep.com"
 
-	DefaultSystemMetricsHost = "metricingest.lightstep.com"
+	DefaultSystemMetricsHost = "ingest.lightstep.com"
 
 	DefaultSystemMetricsMeasurementFrequency = 30 * time.Second
 	DefaultSystemMetricsTimeout              = 5 * time.Second
