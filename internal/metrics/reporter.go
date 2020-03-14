@@ -316,7 +316,6 @@ func retryable(code int) bool {
 		code == http.StatusGatewayTimeout ||
 		code == http.StatusServiceUnavailable ||
 		code == http.StatusRequestTimeout
-
 }
 
 func calculateBackoff(retries uint) int {

@@ -19,47 +19,34 @@ import (
 var _ = Describe("Reporter", func() {
 	var reporter *metrics.Reporter
 	var ingestRequest metricspb.IngestRequest
-	var okServer *httptest.Server
-	var okURL string
-	var retryableServer *httptest.Server
-	var retryableURL string
-	var unretryableServer *httptest.Server
-	var unretryableURL string
+	var server *httptest.Server
+	var url string
+	var statusCode int
 
 	BeforeSuite(func() {
 		h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			status := http.StatusOK
+			if statusCode != 0 {
+				status = statusCode
+			}
+			w.WriteHeader(status)
 			body, _ := ioutil.ReadAll(r.Body)
 			err := proto.Unmarshal(body, &ingestRequest)
 			if !Expect(err).To(BeNil()) {
 				return
 			}
 		})
-		okServer = httptest.NewServer(h)
-		okURL = fmt.Sprintf("http://%s", okServer.Listener.Addr().String())
-
-		h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusBadGateway)
-		})
-		retryableServer = httptest.NewServer(h)
-		retryableURL = fmt.Sprintf("http://%s", retryableServer.Listener.Addr().String())
-
-		h = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusNotFound)
-		})
-		unretryableServer = httptest.NewServer(h)
-		unretryableURL = fmt.Sprintf("http://%s", unretryableServer.Listener.Addr().String())
-
+		server = httptest.NewServer(h)
+		url = fmt.Sprintf("http://%s", server.Listener.Addr().String())
 	})
 
 	AfterSuite(func() {
-		okServer.Close()
-		retryableServer.Close()
-		unretryableServer.Close()
+		server.Close()
 	})
 
-	JustBeforeEach(func() {
+	BeforeEach(func() {
 		reporter = metrics.NewReporter(
-			metrics.WithReporterAddress(okURL),
+			metrics.WithReporterAddress(url),
 		)
 	})
 
@@ -100,25 +87,48 @@ var _ = Describe("Reporter", func() {
 	})
 	Describe("Measure fails unretryably", func() {
 		It("should return an error", func() {
-			reporter = metrics.NewReporter(
-				metrics.WithReporterAddress(unretryableURL),
-			)
-			reporter.Measure(context.Background(), 1)
-			err := reporter.Measure(context.Background(), 1)
-			Expect(err).To(Not(BeNil()))
-			Expect(err.Error()).To(ContainSubstring("404"))
+			var unretryable = []struct {
+				code     int
+				expected string
+			}{
+				{http.StatusBadRequest, fmt.Sprintf("%d", http.StatusBadRequest)},
+				{http.StatusUnauthorized, fmt.Sprintf("%d", http.StatusUnauthorized)},
+				{http.StatusForbidden, fmt.Sprintf("%d", http.StatusForbidden)},
+				{http.StatusNotFound, fmt.Sprintf("%d", http.StatusNotFound)},
+				{http.StatusNotImplemented, fmt.Sprintf("%d", http.StatusNotImplemented)},
+			}
+			for _, t := range unretryable {
+				statusCode = t.code
+				reporter.Measure(context.Background(), 1)
+				err := reporter.Measure(context.Background(), 1)
+				Expect(err).To(Not(BeNil()))
+				Expect(err.Error()).To(ContainSubstring(t.expected))
+			}
 		})
 	})
 	Describe("Measure fails retryably", func() {
 		It("should return after retrying", func() {
+			var retryable = []struct {
+				code     int
+				expected string
+			}{
+				{http.StatusTooManyRequests, "context deadline exceeded"},
+				{http.StatusBadGateway, "context deadline exceeded"},
+				{http.StatusGatewayTimeout, "context deadline exceeded"},
+				{http.StatusServiceUnavailable, "context deadline exceeded"},
+				{http.StatusRequestTimeout, "context deadline exceeded"},
+			}
 			reporter = metrics.NewReporter(
-				metrics.WithReporterAddress(retryableURL),
+				metrics.WithReporterAddress(url),
 				metrics.WithReporterTimeout(10*time.Millisecond),
 			)
-			reporter.Measure(context.Background(), 1)
-			err := reporter.Measure(context.Background(), 1)
-			Expect(err).To(Not(BeNil()))
-			Expect(err.Error()).To(ContainSubstring("context deadline exceeded"))
+			for _, t := range retryable {
+				statusCode = t.code
+				reporter.Measure(context.Background(), 1)
+				err := reporter.Measure(context.Background(), 1)
+				Expect(err).To(Not(BeNil()))
+				Expect(err.Error()).To(ContainSubstring(t.expected))
+			}
 		})
 	})
 })
