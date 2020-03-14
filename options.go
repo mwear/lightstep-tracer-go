@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time" // N.B.(jmacd): Do not use google.golang.org/glog in this package.
 
+	"github.com/lightstep/lightstep-tracer-go/constants"
 	"github.com/opentracing/opentracing-go"
 	"google.golang.org/grpc"
 )
@@ -40,12 +41,12 @@ const (
 
 // Tag and Tracer Attribute keys.
 const (
-	ParentSpanGUIDKey = "parent_span_guid" // ParentSpanGUIDKey is the tag key used to record the relationship between child and parent spans.
-	ComponentNameKey  = "lightstep.component_name"
-	GUIDKey           = "lightstep.guid" // <- runtime guid, not span guid
-	HostnameKey       = "lightstep.hostname"
+	ParentSpanGUIDKey = "parent_span_guid"         // ParentSpanGUIDKey is the tag key used to record the relationship between child and parent spans.
+	ComponentNameKey  = constants.ComponentNameKey // NOTE: these will be deprecated in favour of the constants package
+	GUIDKey           = "lightstep.guid"           // <- runtime guid, not span guid
+	HostnameKey       = constants.HostnameKey      // NOTE: these will be deprecated in favour of the constants package
 	CommandLineKey    = "lightstep.command_line"
-	ServiceVersionKey = "service.version"
+	ServiceVersionKey = constants.ServiceVersionKey // NOTE: these will be deprecated in favour of the constants package
 
 	TracerPlatformKey        = "lightstep.tracer_platform"
 	TracerPlatformValue      = "go"
@@ -256,12 +257,12 @@ func (opts *Options) Initialize() error {
 	}
 
 	// Set some default attributes if not found in options
-	if _, found := opts.Tags[ComponentNameKey]; !found {
-		opts.Tags[ComponentNameKey] = path.Base(os.Args[0])
+	if _, found := opts.Tags[constants.ComponentNameKey]; !found {
+		opts.Tags[constants.ComponentNameKey] = path.Base(os.Args[0])
 	}
-	if _, found := opts.Tags[HostnameKey]; !found {
+	if _, found := opts.Tags[constants.HostnameKey]; !found {
 		hostname, _ := os.Hostname()
-		opts.Tags[HostnameKey] = hostname
+		opts.Tags[constants.HostnameKey] = hostname
 	}
 	if _, found := opts.Tags[CommandLineKey]; !found {
 		opts.Tags[CommandLineKey] = strings.Join(os.Args, " ")

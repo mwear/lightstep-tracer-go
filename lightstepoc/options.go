@@ -2,6 +2,7 @@ package lightstepoc
 
 import (
 	"github.com/lightstep/lightstep-tracer-go"
+	"github.com/lightstep/lightstep-tracer-go/constants"
 	"github.com/opentracing/opentracing-go"
 )
 
@@ -58,7 +59,7 @@ func WithMetaEventReportingEnabled(metaEventReportingEnabled bool) Option {
 func WithComponentName(componentName string) Option {
 	return func(c *config) {
 		if componentName != "" {
-			c.tracerOptions.Tags[lightstep.ComponentNameKey] = componentName
+			c.tracerOptions.Tags[constants.ComponentNameKey] = componentName
 		}
 	}
 }

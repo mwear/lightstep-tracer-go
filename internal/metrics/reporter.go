@@ -16,6 +16,7 @@ import (
 	"github.com/gogo/protobuf/types"
 	"github.com/lightstep/lightstep-tracer-common/golang/gogo/collectorpb"
 	"github.com/lightstep/lightstep-tracer-common/golang/gogo/metricspb"
+	"github.com/lightstep/lightstep-tracer-go/constants"
 )
 
 const (
@@ -68,9 +69,9 @@ func attributesToTags(attributes map[string]string) []*collectorpb.KeyValue {
 func getLabels(attributes map[string]string) []*collectorpb.KeyValue {
 	labels := []*collectorpb.KeyValue{}
 	filters := []string{
-		"lightstep.component_name",
-		"service.version",
-		"lightstep.hostname",
+		constants.ComponentNameKey,
+		constants.ServiceVersionKey,
+		constants.HostnameKey,
 	}
 	for k, v := range attributes {
 		for _, l := range filters {

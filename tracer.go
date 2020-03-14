@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/lightstep/lightstep-tracer-go/constants"
 	"github.com/lightstep/lightstep-tracer-go/internal/metrics"
 	"github.com/opentracing/opentracing-go"
 )
@@ -142,9 +143,9 @@ func CreateTracer(opts Options) (Tracer, error) {
 				metrics.ReporterPlatformKey:        TracerPlatformValue,
 				metrics.ReporterPlatformVersionKey: runtime.Version(),
 				metrics.ReporterVersionKey:         TracerVersionValue,
-				HostnameKey:                        attributes[HostnameKey],
-				ServiceVersionKey:                  attributes[ServiceVersionKey],
-				ComponentNameKey:                   attributes[ComponentNameKey],
+				constants.HostnameKey:              attributes[constants.HostnameKey],
+				constants.ServiceVersionKey:        attributes[constants.ServiceVersionKey],
+				constants.ComponentNameKey:         attributes[constants.ComponentNameKey],
 			}),
 		),
 		metricsMeasurementFrequency: opts.SystemMetrics.MeasurementFrequency,
