@@ -54,10 +54,6 @@ var _ = Describe("Reporter", func() {
 		It("should return an IngestRequest", func() {
 			// initial report always gets skipped
 			err := reporter.Measure(context.Background(), 1)
-			Expect(err).To(BeNil())
-			Expect(ingestRequest.GetPoints()).To(HaveLen(0))
-
-			err = reporter.Measure(context.Background(), 1)
 			if !Expect(err).To(BeNil()) {
 				return
 			}

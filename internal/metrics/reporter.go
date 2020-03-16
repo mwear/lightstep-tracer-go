@@ -146,6 +146,17 @@ func (r *Reporter) Measure(ctx context.Context, intervals int64) error {
 		return err
 	}
 
+	if !r.skippedInitialReport {
+		// intentionally throw away the initial delta report
+		// and measure again
+		r.skippedInitialReport = true
+		r.stored = m
+		m, err = Measure(ctx, 0*time.Second)
+		if err != nil {
+			return err
+		}
+	}
+
 	pb, err := r.prepareRequest(m)
 	if err != nil {
 		return err
@@ -196,12 +207,6 @@ func (r *Reporter) send(ctx context.Context, ingestRequest *metricspb.IngestRequ
 	req.Header.Set(contentTypeHeader, protoContentType)
 	req.Header.Set(acceptHeader, protoContentType)
 	req.Header.Set(accessTokenHeader, r.accessToken)
-
-	if !r.skippedInitialReport {
-		// intentionally skip initial delta report
-		r.skippedInitialReport = true
-		return nil
-	}
 
 	retries := uint(0)
 	waited := 0
