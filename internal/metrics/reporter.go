@@ -48,6 +48,7 @@ type Reporter struct {
 	attributes           map[string]string
 	address              string
 	timeout              time.Duration
+	measurementDuration  time.Duration
 	accessToken          string
 	stored               Metrics
 	collectorReporter    *collectorpb.Reporter
@@ -100,7 +101,8 @@ func NewReporter(opts ...ReporterOption) *Reporter {
 			ReporterId: c.tracerID,
 			Tags:       attributesToTags(c.attributes),
 		},
-		labels: getLabels(c.attributes),
+		measurementDuration: c.measurementDuration,
+		labels:              getLabels(c.attributes),
 	}
 }
 
@@ -128,7 +130,7 @@ func (r *Reporter) addFloat(key string, value float64, kind metricspb.MetricKind
 			Nanos:   int32(r.Start.Nanosecond()),
 		},
 		Duration: &types.Duration{
-			Seconds: int64(DefaultReporterMeasurementDuration.Seconds()) * intervals,
+			Seconds: int64(r.measurementDuration.Seconds()) * intervals,
 		},
 	}
 }
