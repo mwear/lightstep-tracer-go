@@ -167,7 +167,7 @@ func (r *Reporter) Measure(ctx context.Context, intervals int64) error {
 	pb.Points = append(pb.Points, r.addFloat("runtime.go.gc.count", float64(m.GarbageCollector.NumGC-r.stored.GarbageCollector.NumGC), metricspb.MetricKind_COUNTER, intervals))
 
 	pb.Points = append(pb.Points, r.addFloat("mem.available", float64(m.Memory.Available), metricspb.MetricKind_GAUGE, intervals))
-	pb.Points = append(pb.Points, r.addFloat("mem.total", float64(m.Memory.Used), metricspb.MetricKind_GAUGE, intervals))
+	pb.Points = append(pb.Points, r.addFloat("mem.total", float64(m.Memory.Total), metricspb.MetricKind_GAUGE, intervals))
 	pb.Points = append(pb.Points, r.addFloat("runtime.go.mem.heap_alloc", float64(m.Memory.HeapAlloc), metricspb.MetricKind_GAUGE, intervals))
 
 	for label, cpu := range m.CPU {

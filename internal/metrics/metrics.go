@@ -43,7 +43,7 @@ type NIC struct {
 
 type Memory struct {
 	Available uint64
-	Used      uint64
+	Total     uint64
 	HeapAlloc uint64
 }
 
@@ -88,7 +88,7 @@ func Measure(ctx context.Context, interval time.Duration) (Metrics, error) {
 		NIC: make(map[string]NIC),
 		Memory: Memory{
 			Available: memStats.Available,
-			Used:      memStats.Used,
+			Total:     memStats.Total,
 			HeapAlloc: rtm.HeapAlloc,
 		},
 		GarbageCollector: gc,
