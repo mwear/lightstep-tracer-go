@@ -16,33 +16,34 @@ import (
 	. "github.com/onsi/gomega"
 )
 
+var ingestRequest metricspb.IngestRequest
+var server *httptest.Server
+var url string
+var statusCode int
+
+var _ = BeforeSuite(func() {
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		status := http.StatusOK
+		if statusCode != 0 {
+			status = statusCode
+		}
+		w.WriteHeader(status)
+		body, _ := ioutil.ReadAll(r.Body)
+		err := proto.Unmarshal(body, &ingestRequest)
+		if !Expect(err).To(BeNil()) {
+			return
+		}
+	})
+	server = httptest.NewServer(h)
+	url = fmt.Sprintf("http://%s", server.Listener.Addr().String())
+})
+
+var _ = AfterSuite(func() {
+	server.Close()
+})
+
 var _ = Describe("Reporter", func() {
 	var reporter *metrics.Reporter
-	var ingestRequest metricspb.IngestRequest
-	var server *httptest.Server
-	var url string
-	var statusCode int
-
-	BeforeSuite(func() {
-		h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			status := http.StatusOK
-			if statusCode != 0 {
-				status = statusCode
-			}
-			w.WriteHeader(status)
-			body, _ := ioutil.ReadAll(r.Body)
-			err := proto.Unmarshal(body, &ingestRequest)
-			if !Expect(err).To(BeNil()) {
-				return
-			}
-		})
-		server = httptest.NewServer(h)
-		url = fmt.Sprintf("http://%s", server.Listener.Addr().String())
-	})
-
-	AfterSuite(func() {
-		server.Close()
-	})
 
 	BeforeEach(func() {
 		reporter = metrics.NewReporter(
@@ -52,7 +53,6 @@ var _ = Describe("Reporter", func() {
 
 	Describe("Measure", func() {
 		It("should return an IngestRequest", func() {
-			// initial report always gets skipped
 			err := reporter.Measure(context.Background(), 1)
 			if !Expect(err).To(BeNil()) {
 				return
@@ -95,7 +95,6 @@ var _ = Describe("Reporter", func() {
 			}
 			for _, t := range unretryable {
 				statusCode = t.code
-				reporter.Measure(context.Background(), 1)
 				err := reporter.Measure(context.Background(), 1)
 				Expect(err).To(Not(BeNil()))
 				Expect(err.Error()).To(ContainSubstring(t.expected))
@@ -120,7 +119,6 @@ var _ = Describe("Reporter", func() {
 			)
 			for _, t := range retryable {
 				statusCode = t.code
-				reporter.Measure(context.Background(), 1)
 				err := reporter.Measure(context.Background(), 1)
 				Expect(err).To(Not(BeNil()))
 				Expect(err.Error()).To(ContainSubstring(t.expected))

@@ -147,6 +147,7 @@ func CreateTracer(opts Options) (Tracer, error) {
 				constants.ServiceVersionKey:        attributes[constants.ServiceVersionKey],
 				constants.ComponentNameKey:         attributes[constants.ComponentNameKey],
 			}),
+			metrics.WithReporterMeasurementDuration(opts.SystemMetrics.MeasurementFrequency),
 		),
 		metricsMeasurementFrequency: opts.SystemMetrics.MeasurementFrequency,
 	}
