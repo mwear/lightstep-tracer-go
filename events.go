@@ -173,6 +173,22 @@ type EventStatusReport interface {
 	FlushDuration() time.Duration
 }
 
+// MetricEventStatusReport occurs every time metrics are sent successfully.. It
+// contains all metrics collected since the previous successful flush.
+type MetricEventStatusReport interface {
+	Event
+	MetricEventStatusReport()
+
+	// StartTime is the earliest time a span was added to the report buffer.
+	StartTime() time.Time
+
+	// FinishTime is the latest time a span was added to the report buffer.
+	FinishTime() time.Time
+
+	// SentMetrics is the number of metrics sent in the report buffer.
+	SentMetrics() int
+}
+
 type eventStatusReport struct {
 	startTime      time.Time
 	finishTime     time.Time
@@ -401,10 +417,24 @@ func newEventSystemMetricsStatusReport(
 
 func (e *eventSystemMetricsStatusReport) Event() {}
 
+func (e *eventSystemMetricsStatusReport) MetricEventStatusReport() {}
+
 func (e *eventSystemMetricsStatusReport) String() string {
 	return fmt.Sprint(
 		"METRICS STATUS REPORT start: ", e.startTime,
 		", end: ", e.finishTime,
 		", sent metrics: ", e.sentMetrics,
 	)
+}
+
+func (e *eventSystemMetricsStatusReport) StartTime() time.Time {
+	return e.startTime
+}
+
+func (e *eventSystemMetricsStatusReport) FinishTime() time.Time {
+	return e.finishTime
+}
+
+func (e *eventSystemMetricsStatusReport) SentMetrics() int {
+	return e.sentMetrics
 }

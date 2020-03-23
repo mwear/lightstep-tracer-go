@@ -84,6 +84,8 @@ logAndMetricsHandler := func(event lightstep.Event){
   switch event := event.(type) {
   case EventStatusReport:
     metrics.Count("tracer.dropped_spans", event.DroppedSpans())
+  case MetricEventStatusReport:
+    metrics.Count("tracer.sent_metrics", event.SentMetrics())
   case ErrorEvent:
     logger.Error("LS Tracer error: %s", event)
   default:
