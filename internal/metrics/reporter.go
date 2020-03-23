@@ -143,7 +143,7 @@ func (r *Reporter) Measure(ctx context.Context, intervals int64) error {
 	ctx, cancel := context.WithTimeout(ctx, r.timeout)
 	defer cancel()
 
-	m, err := Measure(ctx, 0*time.Second)
+	m, err := Measure(ctx)
 	if err != nil {
 		return err
 	}
@@ -153,7 +153,7 @@ func (r *Reporter) Measure(ctx context.Context, intervals int64) error {
 		// and measure again
 		r.skippedInitialReport = true
 		r.stored = m
-		m, err = Measure(ctx, 0*time.Second)
+		m, err = Measure(ctx)
 		if err != nil {
 			return err
 		}
@@ -166,7 +166,8 @@ func (r *Reporter) Measure(ctx context.Context, intervals int64) error {
 
 	pb.Points = append(pb.Points, r.addFloat("runtime.go.cpu.user", m.ProcessCPU.User-r.stored.ProcessCPU.User, metricspb.MetricKind_COUNTER, intervals))
 	pb.Points = append(pb.Points, r.addFloat("runtime.go.cpu.sys", m.ProcessCPU.System-r.stored.ProcessCPU.System, metricspb.MetricKind_COUNTER, intervals))
-	pb.Points = append(pb.Points, r.addFloat("runtime.go.gc.count", float64(m.GarbageCollector.NumGC-r.stored.GarbageCollector.NumGC), metricspb.MetricKind_COUNTER, intervals))
+	pb.Points = append(pb.Points, r.addFloat("runtime.go.gc.count", float64(m.Runtime.NumGC-r.stored.Runtime.NumGC), metricspb.MetricKind_COUNTER, intervals))
+	pb.Points = append(pb.Points, r.addFloat("runtime.go.goroutine", float64(m.Runtime.NumGoroutine-r.stored.Runtime.NumGoroutine), metricspb.MetricKind_COUNTER, intervals))
 
 	pb.Points = append(pb.Points, r.addFloat("mem.available", float64(m.Memory.Available), metricspb.MetricKind_GAUGE, intervals))
 	pb.Points = append(pb.Points, r.addFloat("mem.total", float64(m.Memory.Total), metricspb.MetricKind_GAUGE, intervals))
@@ -238,12 +239,14 @@ func (r *Reporter) send(ctx context.Context, ingestRequest *metricspb.IngestRequ
 
 type ReporterOption func(*config)
 
+// WithReporterTracerID sets the tracer ID reported back to LightStep
 func WithReporterTracerID(tracerID uint64) ReporterOption {
 	return func(c *config) {
 		c.tracerID = tracerID
 	}
 }
 
+// WithReporterAttributes sets attributes reported back to LightStep
 func WithReporterAttributes(attributes map[string]string) ReporterOption {
 	return func(c *config) {
 		c.attributes = make(map[string]string, len(attributes))
@@ -260,6 +263,7 @@ func WithReporterAddress(address string) ReporterOption {
 	}
 }
 
+// WithReporterTimeout sets the timeout when communicating with LightStep
 func WithReporterTimeout(timeout time.Duration) ReporterOption {
 	return func(c *config) {
 		if timeout > 0 {
@@ -268,6 +272,7 @@ func WithReporterTimeout(timeout time.Duration) ReporterOption {
 	}
 }
 
+// WithReporterMeasurementDuration sets the duration reported back to LightStep
 func WithReporterMeasurementDuration(measurementDuration time.Duration) ReporterOption {
 	return func(c *config) {
 		if measurementDuration > 0 {

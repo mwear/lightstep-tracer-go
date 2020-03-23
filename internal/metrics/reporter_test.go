@@ -73,6 +73,7 @@ var _ = Describe("Reporter", func() {
 				"runtime.go.cpu.sys":        metricspb.MetricKind_COUNTER,
 				"runtime.go.mem.heap_alloc": metricspb.MetricKind_GAUGE,
 				"runtime.go.gc.count":       metricspb.MetricKind_COUNTER,
+				"runtime.go.goroutine":      metricspb.MetricKind_COUNTER,
 			}
 			Expect(points).To(HaveLen(len(expected)))
 			for _, point := range points {

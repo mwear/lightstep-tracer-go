@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"runtime"
-	"time"
 
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/shirou/gopsutil/mem"
@@ -13,15 +12,16 @@ import (
 )
 
 type Metrics struct {
-	ProcessCPU       ProcessCPU
-	CPU              map[string]CPU
-	NIC              map[string]NIC
-	Memory           Memory
-	GarbageCollector GarbageCollector
+	ProcessCPU ProcessCPU
+	CPU        map[string]CPU
+	NIC        map[string]NIC
+	Memory     Memory
+	Runtime    Runtime
 }
 
-type GarbageCollector struct {
-	NumGC uint64
+type Runtime struct {
+	NumGC        uint64
+	NumGoroutine uint64
 }
 
 type ProcessCPU struct {
@@ -47,7 +47,7 @@ type Memory struct {
 	HeapAlloc uint64
 }
 
-func Measure(ctx context.Context, interval time.Duration) (Metrics, error) {
+func Measure(ctx context.Context) (Metrics, error) {
 	p, err := process.NewProcess(int32(os.Getpid())) // TODO: cache the process
 	if err != nil {
 		return Metrics{}, err
@@ -70,8 +70,9 @@ func Measure(ctx context.Context, interval time.Duration) (Metrics, error) {
 
 	var rtm runtime.MemStats
 	runtime.ReadMemStats(&rtm)
-	gc := GarbageCollector{
-		NumGC: uint64(rtm.NumGC),
+	runtime := Runtime{
+		NumGC:        uint64(rtm.NumGC),
+		NumGoroutine: uint64(runtime.NumGoroutine()),
 	}
 
 	memStats, err := mem.VirtualMemoryWithContext(ctx)
@@ -91,7 +92,7 @@ func Measure(ctx context.Context, interval time.Duration) (Metrics, error) {
 			Total:     memStats.Total,
 			HeapAlloc: rtm.HeapAlloc,
 		},
-		GarbageCollector: gc,
+		Runtime: runtime,
 	}
 
 	for _, t := range systemTimes {
