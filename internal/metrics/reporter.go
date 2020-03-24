@@ -167,7 +167,7 @@ func (r *Reporter) Measure(ctx context.Context, intervals int64) error {
 	pb.Points = append(pb.Points, r.addFloat("runtime.go.cpu.user", m.ProcessCPU.User-r.stored.ProcessCPU.User, metricspb.MetricKind_COUNTER, intervals))
 	pb.Points = append(pb.Points, r.addFloat("runtime.go.cpu.sys", m.ProcessCPU.System-r.stored.ProcessCPU.System, metricspb.MetricKind_COUNTER, intervals))
 	pb.Points = append(pb.Points, r.addFloat("runtime.go.gc.count", float64(m.Runtime.NumGC-r.stored.Runtime.NumGC), metricspb.MetricKind_COUNTER, intervals))
-	pb.Points = append(pb.Points, r.addFloat("runtime.go.goroutine", float64(m.Runtime.NumGoroutine-r.stored.Runtime.NumGoroutine), metricspb.MetricKind_COUNTER, intervals))
+	pb.Points = append(pb.Points, r.addFloat("runtime.go.goroutine", float64(m.Runtime.NumGoroutine), metricspb.MetricKind_GAUGE, intervals))
 
 	pb.Points = append(pb.Points, r.addFloat("mem.available", float64(m.Memory.Available), metricspb.MetricKind_GAUGE, intervals))
 	pb.Points = append(pb.Points, r.addFloat("mem.total", float64(m.Memory.Total), metricspb.MetricKind_GAUGE, intervals))
