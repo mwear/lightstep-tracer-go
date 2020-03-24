@@ -85,7 +85,8 @@ func Measure(ctx context.Context) (Metrics, error) {
 			User:   processTimes.User,
 			System: processTimes.System,
 		},
-		CPU: make(map[string]CPU),
+		CPU: make(map[string]CPU, len(systemTimes)),
+		NIC: make(map[string]NIC, len(netStats)),
 		NIC: make(map[string]NIC),
 		Memory: Memory{
 			Available: memStats.Available,
