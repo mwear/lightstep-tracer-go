@@ -84,7 +84,7 @@ func (e Endpoint) SocketAddress() string {
 	return fmt.Sprintf("%s:%d", e.Host, e.Port)
 }
 
-// URL returns an address suitable for dialing thrift connections
+// URL returns an address suitable for dialing http connections
 func (e Endpoint) URL() string {
 	return fmt.Sprintf("%s%s", e.urlWithoutPath(), DefaultCollectorPath)
 }
