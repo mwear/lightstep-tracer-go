@@ -14,9 +14,9 @@ var _ = ginkgo.Describe("the reporter", func() {
 			defaultReporter := NewReporter()
 			gomega.Expect(defaultReporter.tracerID).To(gomega.Equal(uint64(0)))
 			gomega.Expect(defaultReporter.attributes).To(gomega.Equal(map[string]string{}))
-			gomega.Expect(defaultReporter.address).To(gomega.Equal(fmt.Sprintf("%s%s", DefaultReporterAddress, reporterPath)))
-			gomega.Expect(defaultReporter.timeout).To(gomega.Equal(DefaultReporterTimeout))
-			gomega.Expect(defaultReporter.measurementDuration).To(gomega.Equal(DefaultReporterMeasurementDuration))
+			gomega.Expect(defaultReporter.address).To(gomega.Equal(fmt.Sprintf("%s%s", defaultReporterAddress, reporterPath)))
+			gomega.Expect(defaultReporter.timeout).To(gomega.Equal(defaultReporterTimeout))
+			gomega.Expect(defaultReporter.measurementDuration).To(gomega.Equal(defaultReporterMeasurementDuration))
 			gomega.Expect(defaultReporter.accessToken).To(gomega.Equal(""))
 		})
 		ginkgo.It("uses configured values", func() {

@@ -49,6 +49,7 @@ var _ = Describe("Reporter", func() {
 		reporter = metrics.NewReporter(
 			metrics.WithReporterAddress(url),
 		)
+		ingestRequest = metricspb.IngestRequest{}
 	})
 
 	Describe("Measure", func() {
@@ -124,6 +125,18 @@ var _ = Describe("Reporter", func() {
 				Expect(err).To(Not(BeNil()))
 				Expect(err.Error()).To(ContainSubstring(t.expected))
 			}
+		})
+	})
+	Describe("Duration exceeds max", func() {
+		It("should not send a report", func() {
+			tenMinutesOfIntervals := int64(30)
+			err := reporter.Measure(context.Background(), tenMinutesOfIntervals)
+			if !Expect(err).To(BeNil()) {
+				return
+			}
+			// check expected metrics are present and of the right type
+			points := ingestRequest.GetPoints()
+			Expect(points).To(HaveLen(0))
 		})
 	})
 })

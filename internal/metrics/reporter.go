@@ -20,9 +20,10 @@ import (
 )
 
 const (
-	DefaultReporterAddress             = "https://ingest.lightstep.com:443"
-	DefaultReporterTimeout             = time.Second * 5
-	DefaultReporterMeasurementDuration = time.Second * 30
+	defaultReporterAddress             = "https://ingest.lightstep.com:443"
+	defaultReporterTimeout             = time.Second * 5
+	defaultReporterMeasurementDuration = time.Second * 30
+	defaultMaxDuration                 = time.Minute * 10
 )
 
 var (
@@ -183,10 +184,12 @@ func (r *Reporter) Measure(ctx context.Context, intervals int64) error {
 		pb.Points = append(pb.Points, r.addFloat("net.bytes_recv", float64(nic.BytesReceived-r.stored.NIC[label].BytesReceived), metricspb.MetricKind_COUNTER, intervals))
 		pb.Points = append(pb.Points, r.addFloat("net.bytes_sent", float64(nic.BytesSent-r.stored.NIC[label].BytesSent), metricspb.MetricKind_COUNTER, intervals))
 	}
-
-	err = r.send(ctx, pb)
-	if err != nil {
-		return err
+	// ingest drops metrics with duration greater than defaultMaxDuration
+	if (intervals * int64(r.measurementDuration.Seconds())) < int64(defaultMaxDuration.Seconds()) {
+		err = r.send(ctx, pb)
+		if err != nil {
+			return err
+		}
 	}
 
 	r.stored = m
@@ -222,7 +225,6 @@ func (r *Reporter) send(ctx context.Context, ingestRequest *metricspb.IngestRequ
 		if res.StatusCode == http.StatusOK {
 			return nil
 		}
-		defer res.Body.Close()
 		if !retryable(res.StatusCode) {
 			return fmt.Errorf("request to %s failed: %d", r.address, res.StatusCode)
 		}
@@ -302,9 +304,9 @@ func newConfig(opts ...ReporterOption) config {
 
 	defaultOpts := []ReporterOption{
 		WithReporterAttributes(make(map[string]string)),
-		WithReporterAddress(DefaultReporterAddress),
-		WithReporterTimeout(DefaultReporterTimeout),
-		WithReporterMeasurementDuration(DefaultReporterMeasurementDuration),
+		WithReporterAddress(defaultReporterAddress),
+		WithReporterTimeout(defaultReporterTimeout),
+		WithReporterMeasurementDuration(defaultReporterMeasurementDuration),
 	}
 
 	for _, opt := range append(defaultOpts, opts...) {
