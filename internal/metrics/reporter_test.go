@@ -129,7 +129,7 @@ var _ = Describe("Reporter", func() {
 	})
 	Describe("Duration exceeds max", func() {
 		It("should not send a report", func() {
-			tenMinutesOfIntervals := int64(30)
+			tenMinutesOfIntervals := int64(21) // 21 * 30s > 10min
 			err := reporter.Measure(context.Background(), tenMinutesOfIntervals)
 			if !Expect(err).To(BeNil()) {
 				return

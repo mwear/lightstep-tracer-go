@@ -185,7 +185,7 @@ func (r *Reporter) Measure(ctx context.Context, intervals int64) error {
 		pb.Points = append(pb.Points, r.addFloat("net.bytes_sent", float64(nic.BytesSent-r.stored.NIC[label].BytesSent), metricspb.MetricKind_COUNTER, intervals))
 	}
 	// ingest drops metrics with duration greater than defaultMaxDuration
-	if (intervals * int64(r.measurementDuration.Seconds())) < int64(defaultMaxDuration.Seconds()) {
+	if (intervals * int64(r.measurementDuration.Seconds())) <= int64(defaultMaxDuration.Seconds()) {
 		err = r.send(ctx, pb)
 		if err != nil {
 			return err
