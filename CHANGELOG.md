@@ -1,6 +1,10 @@
 # Changelog
 
-## [Pending Release](https://github.com/lightstep/lightstep-tracer-go/compare/v0.19.0...HEAD)
+## [Pending Release](https://github.com/lightstep/lightstep-tracer-go/compare/v0.20.0...HEAD)
+
+## [v0.20.0](https://github.com/lightstep/lightstep-tracer-go/compare/v0.19.0...v0.20.0)
+* Adding support for reporting metrics to Lightstep
+* Updating opencensus dependency
 
 ## [v0.19.0](https://github.com/lightstep/lightstep-tracer-go/compare/v0.18.1...v0.19.0)
 * Add flush duration to status report struct.
