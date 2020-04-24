@@ -5,7 +5,10 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/gogo/protobuf/jsonpb"
 	"github.com/gogo/protobuf/types"
+
+	//"github.com/golang/protobuf/jsonpb"
 	"github.com/lightstep/lightstep-tracer-common/golang/gogo/collectorpb"
 	"github.com/opentracing/opentracing-go"
 )
@@ -30,13 +33,19 @@ func (converter *protoConverter) toReportRequest(
 	accessToken string,
 	buffer *reportBuffer,
 ) *collectorpb.ReportRequest {
-	return &collectorpb.ReportRequest{
+	req := collectorpb.ReportRequest{
 		Reporter:        converter.toReporter(reporterID, attributes),
 		Auth:            converter.toAuth(accessToken),
 		Spans:           converter.toSpans(buffer),
 		InternalMetrics: converter.toInternalMetrics(buffer),
 	}
-
+	m := jsonpb.Marshaler{}
+	s, err := m.MarshalToString(&req)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(s)
+	return &req
 }
 
 func (converter *protoConverter) toReporter(reporterID uint64, attributes map[string]string) *collectorpb.Reporter {

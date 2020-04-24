@@ -18,6 +18,9 @@ import (
 )
 
 var accessToken = flag.String("access_token", "", "your LightStep access token")
+var host = flag.String("host", "collector.lightstep.com", "collector host")
+var port = flag.Int("port", 443, "collector port to")
+var secure = flag.Bool("secure", true, "use https?")
 
 func subRoutine(ctx context.Context) {
 	trivialSpan, _ := opentracing.StartSpanFromContext(ctx, "test span")
@@ -44,16 +47,17 @@ func (r *LoggingRecorder) RecordSpan(span lightstep.RawSpan) {
 }
 
 func main() {
+	flag.Parse()
 	loggableRecorder := &LoggingRecorder{}
 
 	// Use LightStep as the global OpenTracing Tracer.
 	opentracing.InitGlobalTracer(lightstep.NewTracer(lightstep.Options{
 		AccessToken: *accessToken,
-		Collector:   lightstep.Endpoint{Host: "localhost", Port: 8360, Plaintext: true},
+		Collector:   lightstep.Endpoint{Host: *host, Port: *port, Plaintext: !*secure},
 		UseGRPC:     true,
 		Recorder:    loggableRecorder,
 	}))
-
+	fmt.Println(*accessToken)
 	// Do something that's traced.
 	subRoutine(context.Background())
 
